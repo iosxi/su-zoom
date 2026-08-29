@@ -36,40 +36,6 @@ function sdCircle(px, py, cx, cy, radius) {
   return Math.hypot(px - cx, py - cy) - radius;
 }
 
-/** 太さのある円 (リング)。 */
-function sdRing(px, py, cx, cy, radius, thickness) {
-  return Math.abs(sdCircle(px, py, cx, cy, radius)) - thickness / 2;
-}
-
-/** 太さのある線分 (両端は丸い)。 */
-function sdSegment(px, py, ax, ay, bx, by, thickness) {
-  const vx = bx - ax;
-  const vy = by - ay;
-  const wx = px - ax;
-  const wy = py - ay;
-  const len2 = vx * vx + vy * vy;
-  const t = len2 === 0 ? 0 : clamp01((wx * vx + wy * vy) / len2);
-  return Math.hypot(wx - vx * t, wy - vy * t) - thickness / 2;
-}
-
-/** 2 次ベジェ。折れ線に割って最短距離を取る。 */
-function sdCurve(px, py, p0, p1, p2, thickness) {
-  let best = Infinity;
-  let prevX = p0[0];
-  let prevY = p0[1];
-  const STEPS = 24;
-  for (let i = 1; i <= STEPS; i += 1) {
-    const t = i / STEPS;
-    const u = 1 - t;
-    const x = u * u * p0[0] + 2 * u * t * p1[0] + t * t * p2[0];
-    const y = u * u * p0[1] + 2 * u * t * p1[1] + t * t * p2[1];
-    best = Math.min(best, sdSegment(px, py, prevX, prevY, x, y, thickness));
-    prevX = x;
-    prevY = y;
-  }
-  return best;
-}
-
 /** 背景の斜めグラデーション (左上の青 -> 右下の水色)。 */
 function background(u, v) {
   const t = clamp01(u * 0.5 + v * 0.5);
@@ -104,21 +70,35 @@ function renderIcon(size) {
   const frameWidth = small ? 0 : 0.038 * W;
 
   const scale = small ? 1.14 : 1;
-  const lensX = 0.43 * W;
-  const lensY = 0.41 * W;
-  const lensR = 0.205 * scale * W;
-  const lensT = 0.078 * scale * W;
 
-  // 鎖を吊る耳。虫眼鏡の柄と違って、レンズの横から細い鎖が垂れる。
-  const lugX = lensX + 0.215 * scale * W;
-  const lugY = lensY + 0.10 * scale * W;
-  const lugR = 0.055 * scale * W;
+  // 単眼鏡 (双眼鏡の 1 本ぶん) を、左下の接眼から右上の対物へ斜めに寝かせる。
+  //
+  // 筒は角丸の長方形を 3 つ並べて作る。丸い端どうしを継ぐと骨のような形に
+  // なってしまうので、円ではなく「寝かせた角丸の長方形」で描く。座標は
+  // 中心を原点として筒に沿う軸 u と、その直角の軸 v で持つ。
+  const SIN45 = Math.SQRT1_2;
+  const toLocal = (px, py) => {
+    const dx = (px - W / 2) / scale;
+    const dy = (py - W / 2) / scale;
+    return [(dx - dy) * SIN45, (dx + dy) * SIN45]; // [u, v]
+  };
 
-  const chainFrom = [lugX, lugY];
-  const chainVia = [0.83 * W, 0.61 * W];
-  const chainTo = [0.795 * W, 0.85 * W];
-  const chainT = (small ? 0.058 : 0.038) * W;
-  const beadR = 0.055 * scale * W;
+  // [u の中心, v の中心, u の半分, v の半分, 角の丸み] (すべて W に対する割合)
+  //
+  // 接眼と対物の両方を太らせると、小さいうちは中央がくびれて骨のような形に
+  // 見える。16px では接眼のふくらみをやめ、対物へ向かって太る筒だけにする。
+  const eyecup = small
+    ? [-0.245, 0, 0.065, 0.088, 0.035]
+    : [-0.262, 0, 0.048, 0.125, 0.038];
+  const barrel = [-0.05, 0, 0.19, 0.1, 0.045];
+  const objective = [0.2, 0, 0.11, 0.152, 0.05];
+
+  // 対物レンズのガラスとピントリング。1px を割る 16px では描かない。
+  const glass = [0.205, 0, 0.088];
+  const focusRing = [0.075, 0, 0.022, 0.1, 0.02];
+
+  const box = (u, v, [cu, cv, hu, hv, r]) =>
+    coverage(sdRoundedRect(u, v, cu * W, cv * W, hu * W, hv * W, r * W));
 
   for (let y = 0; y < W; y += 1) {
     for (let x = 0; x < W; x += 1) {
@@ -147,18 +127,19 @@ function renderIcon(size) {
         paint(i, 255, 255, 255, Math.min(coverage(frameDist), bgCover) * 0.88);
       }
 
-      // 4. レンズのガラス (うっすら白い面)
-      paint(i, 255, 255, 255, coverage(sdCircle(px, py, lensX, lensY, lensR - lensT / 2)) * 0.22);
+      // 4. 筒 (接眼 + 胴 + 対物)。3 つの角丸を白でまとめて塗る。
+      const [u, v] = toLocal(px, py);
+      const tube = Math.max(
+        box(u, v, eyecup),
+        Math.max(box(u, v, barrel), box(u, v, objective))
+      );
+      paint(i, 255, 255, 255, tube);
 
-      // 5. レンズの縁
-      const lens = coverage(sdRing(px, py, lensX, lensY, lensR, lensT));
-
-      // 6. 耳・鎖・その先の玉。細く垂れる鎖が、虫眼鏡の太い柄との違いになる。
-      const lug = coverage(sdCircle(px, py, lugX, lugY, lugR));
-      const chain = coverage(sdCurve(px, py, chainFrom, chainVia, chainTo, chainT));
-      const bead = coverage(sdCircle(px, py, chainTo[0], chainTo[1], beadR));
-
-      paint(i, 255, 255, 255, Math.max(Math.max(lens, lug), Math.max(chain, bead)));
+      // 5. 対物レンズのガラスとピントリング。筒の上に地の色を重ねて彫る。
+      if (!small) {
+        paint(i, br, bg, bb, coverage(sdCircle(u, v, glass[0] * W, glass[1] * W, glass[2] * W)) * 0.85);
+        paint(i, br, bg, bb, box(u, v, focusRing) * 0.45);
+      }
     }
   }
 
