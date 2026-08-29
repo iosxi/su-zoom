@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <title>su-zoom の設定</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <h1>ルール</h1>
+    <p class="lead">
+      ルールは <code>ドメイン</code> だけでも、<code>ドメイン/パス</code> でも、
+      <code>ドメイン/パス?クエリ</code> でも書けます。
+      URL から <code>https://</code> と <code>#</code> 以降を取り除いたものが、
+      書いた文字列で<strong>始まる</strong>ページすべてに効きます。
+    </p>
+    <details class="help">
+      <summary>書きかたの例</summary>
+      <p><code>example.com/cat/news/japan</code> と書いた場合:</p>
+      <ul class="samples">
+        <li class="yes">https://example.com/cat/news/japan</li>
+        <li class="yes">http://example.com/cat/news/japan/1001</li>
+        <li class="yes">http://example.com/cat/news/japanese</li>
+        <li class="yes">http://example.com/cat/news/japan?page=1</li>
+        <li class="no">https://example.com/cat/news/usa</li>
+        <li class="no">http://example.com/cat/news/china?cat=japan</li>
+      </ul>
+      <p>
+        <code>japanese</code> にも効くのは、単純な前方一致だからです。
+        区切りで止めたいときは末尾に <code>/</code> を付けて
+        <code>example.com/cat/news/japan/</code> と書いてください。
+      </p>
+      <p>クエリで中身が変わるサイトのために、<code>?</code> 以降も書けます。</p>
+      <ul class="samples">
+        <li class="yes"><code>example.com?cat=japan</code> → https://example.com/?cat=japan&amp;page=2</li>
+        <li class="no"><code>example.com?cat=japan</code> → https://example.com/?cat=usa</li>
+      </ul>
+      <p>
+        複数のルールが当たるときは、いちばん細かいものが勝ちます
+        (ホストの完全一致 &gt; ホストが長い &gt; パスが長い)。
+      </p>
+    </details>
+
+    <table class="rules">
+      <thead>
+        <tr>
+          <th class="col-on">有効</th>
+          <th class="col-pattern">ルール</th>
+          <th class="col-zoom">ズーム</th>
+          <th class="col-del"></th>
+        </tr>
+      </thead>
+      <tbody id="rules"></tbody>
+    </table>
+    <p class="empty" id="empty" hidden>まだルールがありません。</p>
+
+    <p class="actions">
+      <button type="button" id="add">ルールを追加</button>
+      <span class="result" id="rules-result"></span>
+    </p>
+
+    <h2>ルールに一致しないページ</h2>
+    <ul class="settings">
+      <li>
+        <label class="radio">
+          <input type="radio" name="unmatched" value="default" />
+          <span class="name">既定のズームにする</span>
+        </label>
+        <label class="inline-number">
+          <input type="number" id="default-zoom" min="30" max="500" step="1" />
+          <span class="unit">%</span>
+        </label>
+        <p class="note">
+          Fixed Zoom と同じく、すべてのページの既定の倍率を決めます。
+          Firefox がサイトごとに覚えている倍率は上書きされます。
+        </p>
+      </li>
+      <li>
+        <label class="radio">
+          <input type="radio" name="unmatched" value="browser" />
+          <span class="name">Firefox の設定にまかせる</span>
+        </label>
+        <p class="note">
+          ルールのないページには手を出しません。Ctrl + マウスホイールなどで
+          変えた倍率がそのまま残ります。
+        </p>
+      </li>
+    </ul>
+
+    <h2>その他</h2>
+    <ul class="settings">
+      <li>
+        <label class="switch">
+          <input type="checkbox" id="include-subdomains" />
+          <span class="name">サブドメインにも適用する</span>
+          <span class="note">
+            入にすると <code>example.com</code> のルールが
+            <code>www.example.com</code> や <code>news.example.com</code> にも効きます。
+            <code>news.example.com</code> のルールを別に作れば、そちらが優先されます。
+          </span>
+        </label>
+      </li>
+      <li>
+        <label class="field">
+          <span class="name">ツールバーに倍率を出す</span>
+          <select id="badge">
+            <option value="nondefault">100% 以外のときだけ出す</option>
+            <option value="always">いつも出す</option>
+            <option value="never">出さない</option>
+          </select>
+        </label>
+      </li>
+    </ul>
+
+    <h2>ルールの持ち出しと取り込み</h2>
+    <p class="lead">
+      ルールを JSON として取り出したり、貼り付けて取り込んだりできます。
+      取り込むと、同じルールは上書きされ、無いものは追加されます。
+    </p>
+    <textarea id="io" spellcheck="false" rows="6"></textarea>
+    <p class="actions">
+      <button type="button" id="export">今のルールを書き出す</button>
+      <button type="button" id="import">上の内容を取り込む</button>
+      <span class="result" id="io-result"></span>
+    </p>
+
+    <script src="common.js"></script>
+    <script src="options.js"></script>
+  </body>
+</html>

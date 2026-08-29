@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <title>su-zoom</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header>
+      <h1>su-zoom</h1>
+      <button type="button" id="open-options" class="icon-button" title="すべての設定">設定</button>
+    </header>
+
+    <p class="page" id="page-label">読み込んでいます…</p>
+
+    <section class="zoom" id="zoom-section">
+      <div class="zoom-row">
+        <button type="button" id="zoom-out" class="step" title="小さく">−</button>
+        <label class="zoom-value">
+          <input type="number" id="zoom-input" min="30" max="500" step="1" />
+          <span class="unit">%</span>
+        </label>
+        <button type="button" id="zoom-in" class="step" title="大きく">＋</button>
+        <button type="button" id="zoom-reset" class="reset">100%</button>
+      </div>
+      <p class="hint">この場ですぐ効きます。保存するには下の「このズームで保存」を押してください。</p>
+    </section>
+
+    <section class="rule" id="rule-section">
+      <p class="status" id="rule-status"></p>
+
+      <label class="field">
+        <span class="field-name">どこまでを対象にするか</span>
+        <select id="candidates"></select>
+      </label>
+
+      <label class="field">
+        <span class="field-name">ルール</span>
+        <input type="text" id="pattern" spellcheck="false" autocomplete="off" />
+      </label>
+
+      <p class="preview" id="preview"></p>
+
+      <div class="actions">
+        <button type="button" id="save" class="primary">このズームで保存</button>
+        <button type="button" id="remove">ルールを削除</button>
+      </div>
+      <p class="result" id="result"></p>
+    </section>
+
+    <p class="unsupported" id="unsupported" hidden>
+      このページにはズームを設定できません。<br />
+      設定できるのは http / https のページだけです。
+    </p>
+
+    <script src="common.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

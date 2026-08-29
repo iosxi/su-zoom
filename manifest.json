@@ -1,0 +1,46 @@
+{
+  "manifest_version": 2,
+  "name": "su-zoom",
+  "version": "2.0.0",
+  "description": "ページごとのズームを固定します。ルールはドメインだけでなく、パスの途中まで指定できます。",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "{1d7f93c6-145c-4d24-97bc-d95a6cebdbff}",
+      "strict_min_version": "140.0",
+      "data_collection_permissions": {
+        "required": [
+          "none"
+        ]
+      }
+    }
+  },
+  "permissions": [
+    "storage",
+    "<all_urls>"
+  ],
+  "background": {
+    "scripts": [
+      "src/common.js",
+      "src/background.js"
+    ]
+  },
+  "browser_action": {
+    "default_title": "su-zoom",
+    "default_popup": "src/popup.html",
+    "default_icon": {
+      "16": "src/icons/icon-16.png",
+      "32": "src/icons/icon-32.png",
+      "48": "src/icons/icon-48.png"
+    }
+  },
+  "icons": {
+    "16": "src/icons/icon-16.png",
+    "32": "src/icons/icon-32.png",
+    "48": "src/icons/icon-48.png",
+    "96": "src/icons/icon-96.png"
+  },
+  "options_ui": {
+    "page": "src/options.html",
+    "open_in_tab": false
+  }
+}
