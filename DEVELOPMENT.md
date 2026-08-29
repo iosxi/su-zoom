@@ -28,9 +28,11 @@ AMO で署名した番号は**永久に消費される**。同じ番号での再
 | `src/options.html/css/js` | 設定画面 |
 | `tools/make-icons.js` | アイコン PNG の生成 (`src/icons/*.png` は生成物) |
 | `tools/test-match.js` | ルール照合の確認 |
-| `tools/build-xpi.js` | 配布用 XPI の作成 |
+| `tools/build-xpi.js` | 配布用 XPI の作成 (無署名) |
 | `tools/sign.js` | AMO 署名 |
 | `tools/fetch-signed.js` | 署名済み XPI の取得のみやり直す |
+| `tools/sign.ps1` | 鍵を読み込んで sign.js を叩く。失敗したら fetch-signed.js へ回る |
+| `tools/fetch-signed.ps1` | 取得だけやり直す (`-List` / `-Version`) |
 
 ## ルールの照合
 
@@ -204,15 +206,68 @@ node tools/build-xpi.js     # -> dist/su-zoom-<version>.xpi
 ### 署名
 
 ```powershell
-$env:AMO_JWT_ISSUER = "user:12345:67"
-$env:AMO_JWT_SECRET = "..."
-node tools/sign.js
+powershell -ExecutionPolicy Bypass -File tools\sign.ps1
 ```
 
-資格情報は環境変数からのみ読む。`--channel unlisted` 固定で、AMO には
-公開されず署名済み XPI が `dist/` に出る。署名には
-`browser_specific_settings.gecko.id` が使われる。この ID は AMO 上で
+これだけでよい。`sign.ps1` は次を順にやる。
+
+1. 鍵ファイルを読む
+2. `node tools/sign.js` (アップロード → 署名待ち → ダウンロード)
+3. 2 が失敗したら `node tools/fetch-signed.js` へ回る
+   (アップロードは済んでいて取得だけ失敗した場合の救済。**バージョンは
+   上げなくてよい**)
+4. `dist/` の XPI を、中身を見て署名あり / なしを付けて並べる
+
+`--channel unlisted` 固定で、AMO には公開されず署名済み XPI が `dist/` に出る。
+署名には `browser_specific_settings.gecko.id` が使われる。この ID は AMO 上で
 アカウントに永続的に紐づくので変更しないこと。
 
-アップロード後にダウンロードだけ失敗したときは、バージョンを上げずに
-`node tools/fetch-signed.js` で取得だけやり直す (`--list` で AMO 側の状態を確認)。
+取得だけやり直したいときは:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File toolsetch-signed.ps1 -List
+powershell -ExecutionPolicy Bypass -File toolsetch-signed.ps1 -Version 2.0.0
+```
+
+#### 鍵の置き場所
+
+資格情報はリポジトリに置かない。`ps1` が次の順に探し、最初に見つかった
+ものを読み込む。
+
+```
+C:\projects\.keys\su-zoompikey.ps1
+C:\projects\.keysollientpikey.ps1
+```
+
+中身は環境変数を 2 つ設定するだけ。AMO のキーは**アカウント単位**なので、
+follient のものが su-zoom にもそのまま使える。今は 2 番目を使っており、
+秘密をディスク上に二重に置いていない。鍵を分けたくなったら 1 番目を作れば
+そちらが優先される。
+
+```powershell
+$env:AMO_JWT_ISSUER = "user:12345:67"
+$env:AMO_JWT_SECRET = "..."
+```
+
+`ps1` は最後に `finally` でこの 2 つを環境から消す。
+
+#### 配るのはどれか
+
+`web-ext` が持ってくる署名済み XPI は AMO 側の名前 (16 進の文字列) になる。
+`build-xpi.js` が作る `su-zoom-<版>.xpi` は**無署名**。取り違えないこと。
+
+| ファイル | |
+| --- | --- |
+| `dist/63afd724542b4f3382df-<版>.xpi` | 署名あり。**これを配る** |
+| `dist/su-zoom-<版>.xpi` | 無署名。手元での確認とハッシュ比較用 |
+
+### PowerShell 5.1 は BOM の無い .ps1 を ANSI として読む
+
+`tools/*.ps1` は**必ず UTF-8 BOM 付きで保存する**。BOM が無いと Windows
+PowerShell 5.1 はファイルをシステムの ANSI コードページとして読み、
+日本語のコメントや文字列が壊れて構文エラーになる。実際に
+`Unexpected token '}'` という、原因の見当が付かないエラーが出た。
+
+同じ理由で、`Get-Content` で UTF-8 のファイルを読むときは
+`-Encoding UTF8` を明示する。`manifest.json` をこれ無しで読んで
+`ConvertFrom-Json` に渡し、`description` が化けて失敗した。
