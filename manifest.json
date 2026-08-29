@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "su-zoom",
-  "version": "3.0.0",
+  "version": "4.0.0",
   "description": "ページごとのズームを固定します。ルールはドメインだけでなく、パスの途中まで指定できます。",
   "browser_specific_settings": {
     "gecko": {
